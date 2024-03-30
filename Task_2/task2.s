@@ -27,13 +27,13 @@
     STX $2001           ; PPUMASK = 0, disable rendering to the screen during startup
     STX $4010           ; 4010 = 0, turns off DMC IRQs, to ensure that we don’t draw random garbage to the screen
     BIT $2002
-vblankwait:             ; fetches the PPU’s status from PPUSTATUS, until PPU is ready
-    BIT $2002
-    BPL vblankwait
-vblankwait2:
-    BIT $2002
-    BPL vblankwait2
-    JMP main
+  vblankwait:             ; fetches the PPU’s status from PPUSTATUS, until PPU is ready
+      BIT $2002
+      BPL vblankwait
+  vblankwait2:
+      BIT $2002
+      BPL vblankwait2
+      JMP main
 .endproc
  
 .proc nmi_handler  ; Define the NMI handler procedure
@@ -44,71 +44,52 @@ vblankwait2:
   sta $4014
 
 ; Increment and compare the 16-bit counter
-  INC testloopLow        ; Increment low byte of testloop
-  LDA testloopLow         ; Load the low byte
-  CMP #$0F                ; Compare low byte with $FF
-  BCS next             ; If equal, branch to 'isEqual'
+  INC frame_tick        ; Increment low byte of testloop
 
-  LDA #<dog_front_side_running  ; Load the low byte of the address
-  STA spriteDataPtr
-  LDA #>dog_front_side_running  ; Load the high byte of the address
-  STA spriteDataPtr+1
-  jsr draw_player
+  @loop_static:
+    LDA #$00
+    STA $2004
+    INY
+    CPY #$08
+    BNE @loop_static
 
-  LDA #<dog_left_side_running  ; Load the low byte of the address
-  STA spriteDataPtr
-  LDA #>dog_left_side_running  ; Load the high byte of the address
-  STA spriteDataPtr+1
-  jsr draw_player
+  LDA #$40
+  STA pos_y
+  LDA #$60
+  STA pos_x
+  LDA #$00
+  STA sprite_direction      ; Front
+  jsr update_player_frame
+  jsr render_player_frame
 
-  LDA #<dog_back_side_running  ; Load the low byte of the address
-  STA spriteDataPtr
-  LDA #>dog_back_side_running  ; Load the high byte of the address
-  STA spriteDataPtr+1
-  jsr draw_player
+  LDA #$40
+  STA pos_y
+  LDA #$70
+  STA pos_x
+  LDA #$02
+  STA sprite_direction      ; Right
+  jsr update_player_frame
+  jsr render_player_frame
 
-  LDA #<dog_right_side_running  ; Load the low byte of the address
-  STA spriteDataPtr
-  LDA #>dog_right_side_running  ; Load the high byte of the address
-  STA spriteDataPtr+1
-  jsr draw_player
+  LDA #$70
+  STA pos_y
+  LDA #$60
+  STA pos_x
+  LDA #$04
+  STA sprite_direction      ; Back
+  jsr update_player_frame
+  jsr render_player_frame
 
-  jmp then
+  LDA #$70
+  STA pos_y
+  LDA #$70
+  STA pos_x
+  LDA #$06
+  STA sprite_direction
+  jsr update_player_frame
+  jsr render_player_frame
 
-  next:
-    LDA #<dog_front_side  ; Load the low byte of the address
-    STA spriteDataPtr
-    LDA #>dog_front_side  ; Load the high byte of the address
-    STA spriteDataPtr+1
-    jsr draw_player
-
-    LDA #<dog_left_side  ; Load the low byte of the address
-    STA spriteDataPtr
-    LDA #>dog_left_side  ; Load the high byte of the address
-    STA spriteDataPtr+1
-    jsr draw_player
-
-    LDA #<dog_back_side  ; Load the low byte of the address
-    STA spriteDataPtr
-    LDA #>dog_back_side  ; Load the high byte of the address
-    STA spriteDataPtr+1
-    jsr draw_player
-
-    LDA #<dog_right_side  ; Load the low byte of the address
-    STA spriteDataPtr
-    LDA #>dog_right_side  ; Load the high byte of the address
-    STA spriteDataPtr+1
-    jsr draw_player
-
-  then:
-    LDA testloopLow        ; Load the low byte
-    CMP #$1F               ; Compare it with $7E
-    BNE continue           ; Branch if not equal to $7E
-    LDA #$00               ; Load 0 into A
-    STA testloopLow        ; Reset testloopLow to 0 if it was $7E
-
-  continue:
-    rti  ; Return from interrupt
+  rti
 .endproc
 
 main:
@@ -138,79 +119,115 @@ enable_rendering: ; DO NOT MODIFY THIS
 forever: ;FOREVER LOOP WAITING FOR THEN NMI INTERRUPT, WHICH OCCURS WHENEVER THE LAST PIXEL IN THE BOTTOM RIGHT CORNER IS PROJECTED
   jmp forever
 
-draw_player:
-  LDY #$00 
-  @loop_static:
-    lda (spriteDataPtr), y
+.proc update_player_frame
+  LDA frame_tick         ; Load the low byte
+  CMP #$0F               ; Compare low byte with $0F
+  BCS next               ; Branch if greater than
+  jmp then
+
+  next:
+    LDA sprite_direction
+    CLC
+    ADC #$01
+    STA sprite_direction
+
+  then:
+    LDA frame_tick        ; Load the low byte
+    CMP #$1F              ; Compare it with $1F
+    BNE continue          ; Branch if not equal to $1F
+    LDA #$00              ; Load 0 into A
+    STA frame_tick        ; Reset frame_tick to 0 if it was $1F
+
+  continue:
+    rts  ; Return from interrupt
+.endproc
+
+.proc render_player_frame
+  LDA sprite_direction ; Multiplying sprite start by 16
+  ASL A
+  ASL A
+  ASL A
+  ASL A
+  TAY
+
+  CLC 
+  ADC #$10
+  STA sprite_end
+
+  @loop_sprites:
+    lda pos_x
+    clc
+    adc dog, y
     sta $2004
     iny
-    cpy #$18         ; 4 sprites * 4 bytes per sprite
-    bne @loop_static
+
+    lda dog, y
+    sta $2004
+    iny
+
+    lda dog, y
+    sta $2004
+    iny
+
+    lda pos_y
+    clc
+    adc dog, y
+    sta $2004
+    iny
+
+    cpy sprite_end
+    bne @loop_sprites
     rts
+.endproc
 
-dog_front_side:
-  .byte $00, $00, $00, $00  ; Do Not Modify
-  .byte $00, $00, $00, $00  ; Do Not Modify
-  .byte $70, $07, $00, $70
-  .byte $70, $08, $00, $78
-  .byte $78, $09, $00, $70
-  .byte $78, $09, %01000000, $78
+dog:  
+  ; Dog Front - SPRITE 0
+  .byte $00, $07, $00, $00 
+  .byte $00, $08, $00, $08
+  .byte $08, $09, $00, $00
+  .byte $08, $09, %01000000, $08
 
-dog_front_side_running:
-  .byte $00, $00, $00, $00  ; Do Not Modify
-  .byte $00, $00, $00, $00 
-  .byte $70, $0A, $00, $70
-  .byte $70, $0B, $00, $78
-  .byte $78, $0C, $00, $70
-  .byte $78, $0C, %01000000, $78
+  ; Dog Front Running - SPRITE 1
+  .byte $00, $0A, $00, $00  
+  .byte $00, $0B, $00, $08
+  .byte $08, $0C, $00, $00
+  .byte $08, $0C, %01000000, $08
 
-dog_left_side:
-  .byte $00, $00, $00, $00  ; Do Not Modify
-  .byte $00, $00, $00, $00  ; Do Not Modify
-  .byte $60, $02, %01000000, $70
-  .byte $60, $01, %01000000, $78
-  .byte $68, $04, %01000000, $70
-  .byte $68, $03, %01000000, $78
+  ; Dog Right - SPRITE 2
+  .byte $00, $01, $00, $00
+  .byte $00, $02, $00, $08
+  .byte $08, $03, $00, $00
+  .byte $08, $04, $00, $08
 
-dog_left_side_running:
-  .byte $00, $00, $00, $00  ; Do Not Modify
-  .byte $00, $00, $00, $00  ; Do Not Modify
-  .byte $60, $02, %01000000, $70
-  .byte $60, $01, %01000000, $78
-  .byte $68, $06, %01000000, $70
-  .byte $68, $05, %01000000, $78
+  ; Dog Right Running - SPRITE 3
+  .byte $00, $01, $00, $00
+  .byte $00, $02, $00, $08
+  .byte $08, $05, $00, $00
+  .byte $08, $06, $00, $08
 
-dog_back_side:
-  .byte $00, $00, $00, $00  ; Do Not Modify
-  .byte $00, $00, $00, $00  ; Do Not Modify
-  .byte $60, $0D, $00, $40
-  .byte $60, $0D, %01000000, $48
-  .byte $68, $0E, $00, $40
-  .byte $68, $0F, $00, $48
+  ; Dog Back - SPRITE 4
+  .byte $00, $0D, $00, $00      
+  .byte $00, $0D, %01000000, $08
+  .byte $08, $0E, $00, $00
+  .byte $08, $0F, $00, $08
 
-dog_back_side_running:
-  .byte $00, $00, $00, $00  ; Do Not Modify
-  .byte $00, $00, $00, $00  ; Do Not Modify
-  .byte $60, $10, $00, $40
-  .byte $60, $10, %01000000, $48
-  .byte $68, $11, $00, $40
-  .byte $68, $12, $00, $48
+  ; Dog Back Running - SPRITE 5
+  .byte $00, $10, $00, $00      
+  .byte $00, $10, %01000000, $08
+  .byte $08, $11, $00, $00
+  .byte $08, $12, $00, $08
 
-dog_right_side:
-  .byte $00, $00, $00, $00  ; Do Not Modify
-  .byte $00, $00, $00, $00  ; Do Not Modify
-  .byte $70, $01, $00, $40
-  .byte $70, $02, $00, $48
-  .byte $78, $03, $00, $40
-  .byte $78, $04, $00, $48
+  ; Dog Left - SPRITE 6
+  .byte $00, $02, %01000000, $00 
+  .byte $00, $01, %01000000, $08
+  .byte $08, $04, %01000000, $00
+  .byte $08, $03, %01000000, $08
 
-dog_right_side_running:
-  .byte $00, $00, $00, $00  ; Do Not Modify
-  .byte $00, $00, $00, $00  ; Do Not Modify
-  .byte $70, $01, $00, $40
-  .byte $70, $02, $00, $48
-  .byte $78, $05, $00, $40
-  .byte $78, $06, $00, $48
+  ; Dog Left Running - SPRITE 7
+  .byte $00, $02, %01000000, $00 
+  .byte $00, $01, %01000000, $08
+  .byte $08, $06, %01000000, $00
+  .byte $08, $05, %01000000, $08
 
 
 palettes: ;The first color should always be the same accross all the palettes. MOdify this section to determine which colors you'd like to use
@@ -234,6 +251,8 @@ palettes: ;The first color should always be the same accross all the palettes. M
 .addr nmi_handler, reset_handler,irq_handler
 
 .segment "ZEROPAGE"
-spriteDataPtr: .res 2
-testloopLow:  .res 1
-
+sprite_direction: .res 1
+sprite_end: .res 1
+frame_tick:  .res 1
+pos_x: .res 1
+pos_y: .res 1

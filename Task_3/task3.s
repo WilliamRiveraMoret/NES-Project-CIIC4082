@@ -54,8 +54,6 @@
     BNE @loop_static
 
   jsr player_controller
-  LDA #$02
-  STA sprite_direction      ; Front
   jsr update_player_frame
   jsr render_player_frame
 
@@ -162,84 +160,88 @@ LatchController:
 
 ; The concept above is called 'Strobing' which initializes the controllers in an NES. Summary: Give me the buttons that the player is pressing now. Buttons are shown one at a time in bit0. If bit0 = 0, then it is not pressed, if bit0 = 1, then it is pressed.
 
-; Read Button States ------------------------------------------------------------
-  LDX #$08        ; Load 8 Button States that need to be read: A,B, Select, Start, Up, Down, Left, and Right.
-
-ReadNextButton:
-  LDA $4016       ; Read P1 Current Button
-  AND #%00000001  ; Only analyze bit0. AND instruction is used to clear the other bits, since only bit0 reads the button. (Isolate LSB)
-  CMP #$00 ; Check if button is pressed or not (b0 == 0), then branches to Continue if not pressed.
-  BEQ Continue 
-  ; Depending on the value in X, then if button is pressed, branch to each instruction
-  CPX #$08
-  BEQ InstrA
-  CPX #$07
-  BEQ InstrB
-  CPX #$06
-  BEQ InstrSelect
-  CPX #$05
-  BEQ InstrStart
-  CPX #$04
-  BEQ InstrUp
-  CPX #$03
-  BEQ InstrDown
-  CPX #$02
-  BEQ InstrLeft
-  CPX #$01
-  BEQ InstrRight
-; Decrement X and loop back if not all buttons have been read
-Continue:
-  DEX
-  CPX #$00
-  BNE ReadNextButton
-
   ; Button Instructions ------------------------------------------------------------
 InstrA:
   ; Instructions for when A-Button is pressed (b0 == 1)
-  JMP Continue
+  LDA $4016       ; Read P1 Current Button
+  AND #%00000001  ; Only analyze bit0. AND instruction is used to clear the other bits, since only bit0 reads the button. (Isolate LSB)
+  CMP #$00 ; Check if button is pressed or not (b0 == 0), then branches to Continue if not pressed.
+  BEQ InstrB
 
 InstrB:
   ; Instructions for when B-Button is pressed (b0 == 1)
-  JMP Continue
+  LDA $4016       ; Read P1 Current Button
+  AND #%00000001  ; Only analyze bit0. AND instruction is used to clear the other bits, since only bit0 reads the button. (Isolate LSB)
+  CMP #$00 ; Check if button is pressed or not (b0 == 0), then branches to Continue if not pressed.
+  BEQ InstrSelect
 
 InstrSelect:
   ; Instructions for when Select-Button is pressed (b0 == 1)
-  JMP Continue
+  LDA $4016       ; Read P1 Current Button
+  AND #%00000001  ; Only analyze bit0. AND instruction is used to clear the other bits, since only bit0 reads the button. (Isolate LSB)
+  CMP #$00 ; Check if button is pressed or not (b0 == 0), then branches to Continue if not pressed.
+  BEQ InstrStart
 
 InstrStart:
   ; Instructions for when Start-Button is pressed (b0 == 1)
-  JMP Continue
+  LDA $4016       ; Read P1 Current Button
+  AND #%00000001  ; Only analyze bit0. AND instruction is used to clear the other bits, since only bit0 reads the button. (Isolate LSB)
+  CMP #$00 ; Check if button is pressed or not (b0 == 0), then branches to Continue if not pressed.
+  BEQ InstrUp
 
-InstrUp: ; LEFT
+InstrUp: 
   ; Instructions for when Up-Button is pressed (b0 == 1)
+  LDA $4016       ; Read P1 Current Button
+  AND #%00000001  ; Only analyze bit0. AND instruction is used to clear the other bits, since only bit0 reads the button. (Isolate LSB)
+  CMP #$00 ; Check if button is pressed or not (b0 == 0), then branches to Continue if not pressed.
+  BEQ InstrDown
+  LDA #$04
+  STA sprite_direction  
   LDA pos_x       ; Load the sprite's Y position
   SEC             ; Set Carry Flag: Subtract
   SBC #$01        ; Y = Y - 1
   STA pos_x        ; Store the sprite's new Y position
-  JMP Continue
+  
 
-InstrDown: ; RIGHT
+InstrDown: 
   ; Instructions for when Down-Button is pressed (b0 == 1)
+  LDA $4016       ; Read P1 Current Button
+  AND #%00000001  ; Only analyze bit0. AND instruction is used to clear the other bits, since only bit0 reads the button. (Isolate LSB)
+  CMP #$00 ; Check if button is pressed or not (b0 == 0), then branches to Continue if not pressed.
+  BEQ InstrLeft
+  LDA #$00
+  STA sprite_direction 
   LDA pos_x        ; Load the sprite's Y position
   CLC             ; Clear Carry Flag: Add
   ADC #$01        ; Y = Y + 1
   STA pos_x      ; Store the sprite's new Y position
-  JMP Continue
 
-InstrLeft: ; UP
+InstrLeft:
   ; Instructions for when L-Button is pressed (b0 == 1)
+  LDA $4016       ; Read P1 Current Button
+  AND #%00000001  ; Only analyze bit0. AND instruction is used to clear the other bits, since only bit0 reads the button. (Isolate LSB)
+  CMP #$00 ; Check if button is pressed or not (b0 == 0), then branches to Continue if not pressed.
+  BEQ InstrRight
+  LDA #$06
+  STA sprite_direction 
   LDA pos_y      ; Load the sprite's X position
   SEC             ; Set Carry Flag: Subtract
   SBC #$01        ; X = X - 1
   STA pos_y      ; Store the sprite's new X position
-  JMP Continue
 
-InstrRight: ; DOWN
+InstrRight:
   ; Instructions for when R-Button is pressed (b0 == 1)
+  LDA $4016       ; Read P1 Current Button
+  AND #%00000001  ; Only analyze bit0. AND instruction is used to clear the other bits, since only bit0 reads the button. (Isolate LSB)
+  CMP #$00 ; Check if button is pressed or not (b0 == 0), then branches to Continue if not pressed.
+  BEQ InstrEnd
+  LDA #$02
+  STA sprite_direction 
   LDA pos_y     ; Load the sprite's X position
   CLC             ; Clear Carry Flag: Add
   ADC #$01        ; X = X + 1
   STA pos_y      ; Store the sprite's new X position
+InstrEnd:
 rts
 .endproc
 

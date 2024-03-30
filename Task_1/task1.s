@@ -4,7 +4,7 @@
   .byte $4E, $45, $53, $1A
   .byte 2               ; 2x 16KB PRG code
   .byte 1               ; 1x  8KB CHR data
-  .byte $01, $00        ; mapper 0, vertical mirroring
+  .byte $01, $00        ; tilesper 0, vertical mirroring
 
 .segment "VECTORS"
   ;; When an NMI happens (once per frame if enabled) the label nmi:
@@ -73,342 +73,23 @@ load_palettes:
   cpx #$20
   bne @loop
 
-; Stone Brick Wall:
+LDX #$00
+@tile_loop:
   lda $2002 
-  lda #$22
+  lda tiles, x
   sta $2006
-  lda #$48
-  sta $2006
-  ldx #$13
-  stx $2007 
+  inx
 
-  lda $2002
-  lda #$22
+  lda tiles, x
   sta $2006
-  lda #$49
-  sta $2006
-  ldx #$13
-  stx $2007 
+  inx
 
-  lda $2002
-  lda #$22
-  sta $2006
-  lda #$68
-  sta $2006
-  ldx #$13
-  stx $2007 
+  lda tiles, x
+  sta $2007
+  inx
 
-  lda $2002
-  lda #$22
-  sta $2006
-  lda #$69
-  sta $2006
-  ldx #$13
-  stx $2007
-
-; Smooth Stone Wall:
-  lda $2002 
-  lda #$22
-  sta $2006
-  lda #$4A
-  sta $2006
-  ldx #$14
-  stx $2007 
-
-  lda $2002
-  lda #$22
-  sta $2006
-  lda #$4B
-  sta $2006
-  ldx #$2B
-  stx $2007 
-
-  lda $2002
-  lda #$22
-  sta $2006
-  lda #$6A
-  sta $2006
-  ldx #$2C
-  stx $2007 
-
-  lda $2002
-  lda #$22
-  sta $2006
-  lda #$6B
-  sta $2006
-  ldx #$2D
-  stx $2007
-
-  lda $2002 ; Attribute
-  lda #$23
-  sta $2006
-  lda #$E2
-  sta $2006
-  ldx #%01100000
-  stx $2007 
-
-; Stone:
-  lda $2002 
-  lda #$22
-  sta $2006
-  lda #$4C
-  sta $2006
-  ldx #$15
-  stx $2007 
-
-  lda $2002
-  lda #$22
-  sta $2006
-  lda #$4D
-  sta $2006
-  ldx #$15
-  stx $2007 
-
-  lda $2002
-  lda #$22
-  sta $2006
-  lda #$6C
-  sta $2006
-  ldx #$15
-  stx $2007 
-
-  lda $2002
-  lda #$22
-  sta $2006
-  lda #$6D
-  sta $2006
-  ldx #$15
-  stx $2007
-
-; Bush:
-  lda $2002 
-  lda #$22
-  sta $2006
-  lda #$4E
-  sta $2006
-  ldx #$16
-  stx $2007 
-
-  lda $2002
-  lda #$22
-  sta $2006
-  lda #$4F
-  sta $2006
-  ldx #$2E
-  stx $2007 
-
-  lda $2002
-  lda #$22
-  sta $2006
-  lda #$6E
-  sta $2006
-  ldx #$2F
-  stx $2007 
-
-  lda $2002
-  lda #$22
-  sta $2006
-  lda #$6F
-  sta $2006
-  ldx #$30
-  stx $2007
-
-  lda $2002 ; Attribute
-  lda #$23
-  sta $2006
-  lda #$E3
-  sta $2006
-  ldx #%10010000
-  stx $2007 
-
-; Mossy Cobble Stone:
-  lda $2002 
-  lda #$22
-  sta $2006
-  lda #$50
-  sta $2006
-  ldx #$17
-  stx $2007 
-
-  lda $2002
-  lda #$22
-  sta $2006
-  lda #$51
-  sta $2006
-  ldx #$17
-  stx $2007 
-
-  lda $2002
-  lda #$22
-  sta $2006
-  lda #$70
-  sta $2006
-  ldx #$17
-  stx $2007 
-
-  lda $2002
-  lda #$22
-  sta $2006
-  lda #$71
-  sta $2006
-  ldx #$17
-  stx $2007
-
-  lda $2002 ; Attribute
-  lda #$23
-  sta $2006
-  lda #$E4
-  sta $2006
-  ldx #%10100000
-  stx $2007 
-
-; Wood:
-  lda $2002 
-  lda #$22
-  sta $2006
-  lda #$88
-  sta $2006
-  ldx #$18
-  stx $2007 
-
-  lda $2002
-  lda #$22
-  sta $2006
-  lda #$89
-  sta $2006
-  ldx #$18
-  stx $2007 
-
-  lda $2002
-  lda #$22
-  sta $2006
-  lda #$A8
-  sta $2006
-  ldx #$18
-  stx $2007 
-
-  lda $2002
-  lda #$22
-  sta $2006
-  lda #$A9
-  sta $2006
-  ldx #$18
-  stx $2007
-
-; Dirt:
-  lda $2002 
-  lda #$22
-  sta $2006
-  lda #$8A
-  sta $2006
-  ldx #$19
-  stx $2007 
-
-  lda $2002
-  lda #$22
-  sta $2006
-  lda #$8B
-  sta $2006
-  ldx #$19
-  stx $2007 
-
-  lda $2002
-  lda #$22
-  sta $2006
-  lda #$AA
-  sta $2006
-  ldx #$1A
-  stx $2007 
-
-  lda $2002
-  lda #$22
-  sta $2006
-  lda #$AB
-  sta $2006
-  ldx #$1A
-  stx $2007
-
-  lda $2002 ; Attribute
-  lda #$23
-  sta $2006
-  lda #$EA
-  sta $2006
-  ldx #%00001000
-  stx $2007 
-
-; Fence:
-  lda $2002 
-  lda #$22
-  sta $2006
-  lda #$8C
-  sta $2006
-  ldx #$1B
-  stx $2007 
-
-  lda $2002
-  lda #$22
-  sta $2006
-  lda #$8D
-  sta $2006
-  ldx #$1B
-  stx $2007 
-
-  lda $2002
-  lda #$22
-  sta $2006
-  lda #$AC
-  sta $2006
-  ldx #$24
-  stx $2007 
-
-  lda $2002
-  lda #$22
-  sta $2006
-  lda #$AD
-  sta $2006
-  ldx #$24
-  stx $2007
-
-; Door:
-  lda $2002 
-  lda #$22
-  sta $2006
-  lda #$8E
-  sta $2006
-  ldx #$1C
-  stx $2007 
-
-  lda $2002
-  lda #$22
-  sta $2006
-  lda #$8F
-  sta $2006
-  ldx #$1D
-  stx $2007 
-
-  lda $2002
-  lda #$22
-  sta $2006
-  lda #$AE
-  sta $2006
-  ldx #$1E
-  stx $2007 
-
-  lda $2002
-  lda #$22
-  sta $2006
-  lda #$AF
-  sta $2006
-  ldx #$1F
-  stx $2007
-
-  lda $2002 ; Attribute
-  lda #$23
-  sta $2006
-  lda #$EB
-  sta $2006
-  ldx #%00000010
-  stx $2007 
+  CPX #$78
+  BNE @tile_loop
 
 enable_rendering: ; DO NOT MODIFY THIS
   lda #%10000000	; Enable NMI
@@ -483,6 +164,76 @@ dog_sprites:
   .byte $78, $0C, $00, $88
   .byte $78, $0C, %01000000, $90
 
+tiles: 
+  ; Stone Brick Wall
+  .byte $22, $48, $13
+  .byte $22, $49, $13
+  .byte $22, $68, $13
+  .byte $22, $69, $13
+
+  ; Smooth Stone Wall:
+  .byte $22, $4A, $14
+  .byte $22, $4B, $2B
+  .byte $22, $6A, $2C
+  .byte $22, $6B, $2D
+
+  ; Attribute
+  .byte $23, $E2, %01100000
+
+  ; Stone:
+  .byte $22, $4C, $15
+  .byte $22, $4D, $15
+  .byte $22, $6C, $15
+  .byte $22, $6D, $15
+
+  ; Bush:
+  .byte $22, $4E, $16
+  .byte $22, $4F, $2E
+  .byte $22, $6E, $2F
+  .byte $22, $6F, $30
+
+  ; Attribute
+  .byte $23, $E3, %10010000
+
+  ; Mossy Cobble Stone:
+  .byte $22, $50, $17
+  .byte $22, $51, $17
+  .byte $22, $70, $17
+  .byte $22, $71, $17
+
+  ; Attribute
+  .byte $23, $E4, %10100000
+
+  ; Wood:
+  .byte $22, $88, $18
+  .byte $22, $89, $18
+  .byte $22, $A8, $18
+  .byte $22, $A9, $18
+
+  ; Dirt:
+  .byte $22, $8A, $19
+  .byte $22, $8B, $19
+  .byte $22, $AA, $1A
+  .byte $22, $AB, $1A
+
+  ; Attribute
+  .byte $23, $EA, %00001000
+
+  ; Fence:
+  .byte $22, $8C, $1B
+  .byte $22, $8D, $1B
+  .byte $22, $AC, $24
+  .byte $22, $AD, $24
+
+  ; Door:
+  .byte $22, $8E, $1C
+  .byte $22, $8F, $1D
+  .byte $22, $AE, $1E
+  .byte $22, $AF, $1F
+
+  ; Attribute
+  .byte $23, $EB, %00000010
+
 palettes: ;The first color should always be the same accross all the palettes. MOdify this section to determine which colors you'd like to use
   ; Background Palette % all black and gray
   .byte $0f, $27, $17, $07  ; Palette 00
@@ -498,4 +249,4 @@ palettes: ;The first color should always be the same accross all the palettes. M
 
 ; Character memory
 .segment "CHARS"
-.incbin "sprites_nes.chr"
+.incbin "sprites.chr"

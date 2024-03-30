@@ -21,96 +21,96 @@
 .segment "CODE"
 
 reset:
-  sei		; disable IRQs
-  cld		; disable decimal mode
-  ldx #$40
-  stx $4017	; disable APU frame IRQ
-  ldx #$ff 	; Set up stack
-  txs		;  .
-  inx		; now X = 0
-  stx $2000	; disable NMI
-  stx $2001 	; disable rendering
-  stx $4010 	; disable DMC IRQs
+  SEI		; disable IRQs
+  CLD		; disable decimal mode
+  LDX #$40
+  STX $4017	; disable APU frame IRQ
+  LDX #$ff 	; Set up stack
+  TXS		;  .
+  INX		; now X = 0
+  STX $2000	; disable NMI
+  STX $2001 	; disable rendering
+  STX $4010 	; disable DMC IRQs
 
 ;; first wait for vblank to make sure PPU is ready
 vblankwait1:
-  bit $2002
-  bpl vblankwait1
+  BIT $2002
+  BPL vblankwait1
 
 clear_memory:
-  lda #$00
-  sta $0000, x
-  sta $0100, x
-  sta $0200, x
-  sta $0300, x
-  sta $0400, x
-  sta $0500, x
-  sta $0600, x
-  sta $0700, x
-  inx
-  bne clear_memory
+  LDA #$00
+  STA $0000, x
+  STA $0100, x
+  STA $0200, x
+  STA $0300, x
+  STA $0400, x
+  STA $0500, x
+  STA $0600, x
+  STA $0700, x
+  INX
+  BNE clear_memory
 
 ;; second wait for vblank, PPU is ready after this
 vblankwait2:
-  bit $2002
-  bpl vblankwait2
+  BIT $2002
+  BPL vblankwait2
 
 main:
 load_palettes:
-  lda $2002 ;reads from the CPU-RAM PPU address register to reset it
-  lda #$3f  ;loads the higher byte of the PPU address register of the palettes in a (we want to write in $3f00 of the PPU since it is the address where the palettes of the PPU are stored)
-  sta $2006 ;store what's in a (higher byte of PPU palettes address register $3f00) in the CPU-RAM memory location that transfers it into the PPU ($2006)
-  lda #$00  ;loads the lower byte of the PPU address register in a
-  sta $2006 ;store what's in a (lower byte of PPU palettes address register $3f00) in the CPU-RAM memory location that transfers it into the PPU ($2006)
-  ldx #$00  ;AFTER THIS, THE PPU-RAM GRAPHICS POINTER WILL BE POINTING TO THE MEMORY LOCATION THAT CONTAINS THE SPRITES, NOW WE NEED TO TRANSFER SPRITES FROM THE CPU-ROM TO THE PPU-RAM
+  LDA $2002 ;reads from the CPU-RAM PPU address register to reset it
+  LDA #$3f  ;loads the higher byte of the PPU address register of the palettes in a (we want to write in $3f00 of the PPU since it is the address where the palettes of the PPU are stored)
+  STA $2006 ;store what's in a (higher byte of PPU palettes address register $3f00) in the CPU-RAM memory location that transfers it into the PPU ($2006)
+  LDA #$00  ;loads the lower byte of the PPU address register in a
+  STA $2006 ;store what's in a (lower byte of PPU palettes address register $3f00) in the CPU-RAM memory location that transfers it into the PPU ($2006)
+  LDX #$00  ;AFTER THIS, THE PPU-RAM GRAPHICS POINTER WILL BE POINTING TO THE MEMORY LOCATION THAT CONTAINS THE SPRITES, NOW WE NEED TO TRANSFER SPRITES FROM THE CPU-ROM TO THE PPU-RAM
             ;THE PPU-RAM POINTER GETS INCREASED AUTOMATICALLY WHENEVER WE WRITE ON IT
 
 ; NO NEED TO MODIFY THIS LOOP SUBROUTINE, IT ALWAYS LOADS THE SAME AMOUNT OF PALETTE REGISTER. TO MODIFY PALETTES, REFER TO THE PALETTE SECTION
 @loop: 
-  lda palettes, x   ; as x starts at zero, it starts loading in a the first element in the palettes code section ($0f). This address mode allows us to copy elements from a tag with .data directives and the index in x
-  sta $2007         ;THE PPU-RAM POINTER GETS INCREASED AUTOMATICALLY WHENEVER WE WRITE ON IT
-  inx
-  cpx #$20
-  bne @loop
+  LDA palettes, x   ; as x starts at zero, it starts loading in a the first element in the palettes code section ($0f). This address mode allows us to copy elements from a tag with .data directives and the index in x
+  STA $2007         ;THE PPU-RAM POINTER GETS INCREASED AUTOMATICALLY WHENEVER WE WRITE ON IT
+  INX
+  CPX #$20
+  BNE @loop
 
 LDX #$00
 @tile_loop:
-  lda $2002 
-  lda tiles, x
-  sta $2006
-  inx
+  LDA $2002 
+  LDA tiles, x
+  STA $2006
+  INX
 
-  lda tiles, x
-  sta $2006
-  inx
+  LDA tiles, x
+  STA $2006
+  INX
 
-  lda tiles, x
-  sta $2007
-  inx
+  LDA tiles, x
+  STA $2007
+  INX
 
   CPX #$78
   BNE @tile_loop
 
 enable_rendering: ; DO NOT MODIFY THIS
-  lda #%10000000	; Enable NMI
-  sta $2000
-  lda #%00011000	; Enable Letters Backgroud
-  sta $2001
+  LDA #%10000000	; Enable NMI
+  STA $2000
+  LDA #%00011000	; Enable Letters Backgroud
+  STA $2001
 
 forever: ;FOREVER LOOP WAITING FOR THEN NMI INTERRUPT, WHICH OCCURS WHENEVER THE LAST PIXEL IN THE BOTTOM RIGHT CORNER IS PROJECTED
-  jmp forever
+  JMP forever
 
 nmi:  ;WHENEVER AN NMI INTERRUPT OCCURS, THE PROGRAM JUMPS HERE (60fps)
-  ldx #$00
-  stx $2003
-  stx $2005
+  LDX #$00
+  STX $2003
+  STX $2005
 @loop:
-  lda dog_sprites, x
-  sta $2004
-  inx
-  cpx #$88
-  bne @loop
-  rti
+  LDA dog_sprites, x
+  STA $2004
+  INX
+  CPX #$88
+  BNE @loop
+  RTI
 
 dog_sprites:
   .byte $00, $00, $00, $00  ; Do Not Modify

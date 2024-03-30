@@ -37,11 +37,11 @@
 .endproc
  
 .proc nmi_handler  ; Define the NMI handler procedure
-  ldy #$00           ; Reset index Y for looping through sprite data
-  sty $2003          ; Reset OAM address
-  sty $2005          ; Reset scroll registers
-  lda $02
-  sta $4014
+  LDY #$00           ; Reset index Y for looping through sprite data
+  STY $2003          ; Reset OAM address
+  STY $2005          ; Reset scroll registers
+  LDA $02
+  STA $4014
 
   INC frame_tick
 
@@ -52,44 +52,44 @@
     CPY #$08
     BNE @loop_static
 
-  jsr player_controller
-  jsr update_player_frame
-  jsr render_player_frame
-  rti
+  JSR player_controller
+  JSR update_player_frame
+  JSR render_player_frame
+  RTI
 .endproc
 
 main:
 load_palettes:
-  lda $2002 ;reads from the CPU-RAM PPU address register to reset it
-  lda #$3f  ;loads the higher byte of the PPU address register of the palettes in a (we want to write in $3f00 of the PPU since it is the address where the palettes of the PPU are stored)
-  sta $2006 ;store what's in a (higher byte of PPU palettes address register $3f00) in the CPU-RAM memory location that transfers it into the PPU ($2006)
-  lda #$00  ;loads the lower byte of the PPU address register in a
-  sta $2006 ;store what's in a (lower byte of PPU palettes address register $3f00) in the CPU-RAM memory location that transfers it into the PPU ($2006)
-  ldx #$00  ;AFTER THIS, THE PPU-RAM GRAPHICS POINTER WILL BE POINTING TO THE MEMORY LOCATION THAT CONTAINS THE SPRITES, NOW WE NEED TO TRANSFER SPRITES FROM THE CPU-ROM TO THE PPU-RAM
+  LDA $2002 ;reads from the CPU-RAM PPU address register to reset it
+  LDA #$3f  ;loads the higher byte of the PPU address register of the palettes in a (we want to write in $3f00 of the PPU since it is the address where the palettes of the PPU are stored)
+  STA $2006 ;store what's in a (higher byte of PPU palettes address register $3f00) in the CPU-RAM memory location that transfers it into the PPU ($2006)
+  LDA #$00  ;loads the lower byte of the PPU address register in a
+  STA $2006 ;store what's in a (lower byte of PPU palettes address register $3f00) in the CPU-RAM memory location that transfers it into the PPU ($2006)
+  LDX #$00  ;AFTER THIS, THE PPU-RAM GRAPHICS POINTER WILL BE POINTING TO THE MEMORY LOCATION THAT CONTAINS THE SPRITES, NOW WE NEED TO TRANSFER SPRITES FROM THE CPU-ROM TO THE PPU-RAM
             ;THE PPU-RAM POINTER GETS INCREASED AUTOMATICALLY WHENEVER WE WRITE ON IT
 
 ; NO NEED TO MODIFY THIS LOOP SUBROUTINE, IT ALWAYS LOADS THE SAME AMOUNT OF PALETTE REGISTER. TO MODIFY PALETTES, REFER TO THE PALETTE SECTION
 @loop: 
-  lda palettes, x   ; as x starts at zero, it starts loading in a the first element in the palettes code section ($0f). This address mode allows us to copy elements from a tag with .data directives and the index in x
-  sta $2007         ;THE PPU-RAM POINTER GETS INCREASED AUTOMATICALLY WHENEVER WE WRITE ON IT
-  inx
-  cpx #$20
-  bne @loop
+  LDA palettes, x   ; as x starts at zero, it starts loading in a the first element in the palettes code section ($0f). This address mode allows us to copy elements from a tag with .data directives and the index in x
+  STA $2007         ;THE PPU-RAM POINTER GETS INCREASED AUTOMATICALLY WHENEVER WE WRITE ON IT
+  INX
+  CPX #$20
+  BNE @loop
 
 enable_rendering: ; DO NOT MODIFY THIS
-  lda #%10000000	; Enable NMI
-  sta $2000
-  lda #%10011000	; Enable Letters Backgroud
-  sta $2001
+  LDA #%10000000	; Enable NMI
+  STA $2000
+  LDA #%10011000	; Enable Letters Backgroud
+  STA $2001
 
 forever: ;FOREVER LOOP WAITING FOR THEN NMI INTERRUPT, WHICH OCCURS WHENEVER THE LAST PIXEL IN THE BOTTOM RIGHT CORNER IS PROJECTED
-  jmp forever
+  JMP forever
 
 .proc update_player_frame
   LDA frame_tick         ; Load the low byte
   CMP #$0F               ; Compare low byte with $0F
   BCS next               ; Branch if greater than
-  jmp then
+  JMP then
 
   next:
     LDA sprite_direction
@@ -105,7 +105,7 @@ forever: ;FOREVER LOOP WAITING FOR THEN NMI INTERRUPT, WHICH OCCURS WHENEVER THE
     STA frame_tick        ; Reset frame_tick to 0 if it was $1F
 
   continue:
-    rts  ; Return from interrupt
+    RTS  ; Return from interrupt
 .endproc
 
 .proc render_player_frame
@@ -121,29 +121,29 @@ forever: ;FOREVER LOOP WAITING FOR THEN NMI INTERRUPT, WHICH OCCURS WHENEVER THE
   STA sprite_end
 
   @loop_sprites:
-    lda pos_x
-    clc
-    adc dog, y
-    sta $2004
-    iny
+    LDA pos_x
+    CLC
+    ADC dog, y
+    STA $2004
+    INY
 
-    lda dog, y
-    sta $2004
-    iny
+    LDA dog, y
+    STA $2004
+    INY
 
-    lda dog, y
-    sta $2004
-    iny
+    LDA dog, y
+    STA $2004
+    INY
 
-    lda pos_y
-    clc
-    adc dog, y
-    sta $2004
-    iny
+    LDA pos_y
+    CLC
+    ADC dog, y
+    STA $2004
+    INY
 
-    cpy sprite_end
-    bne @loop_sprites
-    rts
+    CPY sprite_end
+    BNE @loop_sprites
+    RTS
 .endproc
 
 .proc player_controller
@@ -248,7 +248,7 @@ forever: ;FOREVER LOOP WAITING FOR THEN NMI INTERRUPT, WHICH OCCURS WHENEVER THE
     STA player_moving_flag
 
   InstrEnd:
-  rts
+  RTS
 .endproc
 
 dog:  

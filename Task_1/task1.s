@@ -1,4 +1,4 @@
-; William Rivera Moret & Fabian ... 
+; William Rivera Moret & Fabian Pérez Muñoz 
 .segment "HEADER"
   ; .byte "NES", $1A      ; iNES header identifier
   .byte $4E, $45, $53, $1A

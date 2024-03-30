@@ -1,0 +1,5 @@
+{
+  "executable": "/usr/local/bin/cl65", 
+  "input": "Task_3/task3.s",
+  "params": "--verbose --target nes -o Task_3/task3.nes"
+}

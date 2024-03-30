@@ -53,39 +53,9 @@
     CPY #$08
     BNE @loop_static
 
-  LDA #$40
-  STA pos_y
-  LDA #$60
-  STA pos_x
-  LDA #$00
-  STA sprite_direction      ; Front
-  jsr update_player_frame
-  jsr render_player_frame
-
-  LDA #$40
-  STA pos_y
-  LDA #$70
-  STA pos_x
+  jsr player_controller
   LDA #$02
-  STA sprite_direction      ; Right
-  jsr update_player_frame
-  jsr render_player_frame
-
-  LDA #$70
-  STA pos_y
-  LDA #$60
-  STA pos_x
-  LDA #$04
-  STA sprite_direction      ; Back
-  jsr update_player_frame
-  jsr render_player_frame
-
-  LDA #$70
-  STA pos_y
-  LDA #$70
-  STA pos_x
-  LDA #$06
-  STA sprite_direction
+  STA sprite_direction      ; Front
   jsr update_player_frame
   jsr render_player_frame
 
@@ -178,6 +148,99 @@ forever: ;FOREVER LOOP WAITING FOR THEN NMI INTERRUPT, WHICH OCCURS WHENEVER THE
     cpy sprite_end
     bne @loop_sprites
     rts
+.endproc
+
+.proc player_controller
+; ; Controller Initialization -----------------------------------------------------
+;  ; $4016 is an I/O Register (Memory-Mapped I/O Register). Send the Latch pulse down to the 4021. High Voltage = Data Input Mode / Low Voltage = Data Output Mode
+LatchController: 
+; Commence Strobing Process
+  LDA #$01        ; Load a value of 1 in "A" register
+  STA $4016       ; Store that value of 1 into RAM, making voltage high for controller ports. This will set the 8 bits that will have the output values of the procedure. This will contain a series of bits that will denoted if a button was pressed or not.
+  LDA #$00        ; Load value of 0 in acummulator.
+  STA $4016       ; Brings voltage to low on the latch pins. Tell the controllers to latch buttons
+
+; The concept above is called 'Strobing' which initializes the controllers in an NES. Summary: Give me the buttons that the player is pressing now. Buttons are shown one at a time in bit0. If bit0 = 0, then it is not pressed, if bit0 = 1, then it is pressed.
+
+; Read Button States ------------------------------------------------------------
+  LDX #$08        ; Load 8 Button States that need to be read: A,B, Select, Start, Up, Down, Left, and Right.
+
+ReadNextButton:
+  LDA $4016       ; Read P1 Current Button
+  AND #%00000001  ; Only analyze bit0. AND instruction is used to clear the other bits, since only bit0 reads the button. (Isolate LSB)
+  CMP #$00 ; Check if button is pressed or not (b0 == 0), then branches to Continue if not pressed.
+  BEQ Continue 
+  ; Depending on the value in X, then if button is pressed, branch to each instruction
+  CPX #$08
+  BEQ InstrA
+  CPX #$07
+  BEQ InstrB
+  CPX #$06
+  BEQ InstrSelect
+  CPX #$05
+  BEQ InstrStart
+  CPX #$04
+  BEQ InstrUp
+  CPX #$03
+  BEQ InstrDown
+  CPX #$02
+  BEQ InstrLeft
+  CPX #$01
+  BEQ InstrRight
+; Decrement X and loop back if not all buttons have been read
+Continue:
+  DEX
+  CPX #$00
+  BNE ReadNextButton
+
+  ; Button Instructions ------------------------------------------------------------
+InstrA:
+  ; Instructions for when A-Button is pressed (b0 == 1)
+  JMP Continue
+
+InstrB:
+  ; Instructions for when B-Button is pressed (b0 == 1)
+  JMP Continue
+
+InstrSelect:
+  ; Instructions for when Select-Button is pressed (b0 == 1)
+  JMP Continue
+
+InstrStart:
+  ; Instructions for when Start-Button is pressed (b0 == 1)
+  JMP Continue
+
+InstrUp: ; LEFT
+  ; Instructions for when Up-Button is pressed (b0 == 1)
+  LDA pos_x       ; Load the sprite's Y position
+  SEC             ; Set Carry Flag: Subtract
+  SBC #$01        ; Y = Y - 1
+  STA pos_x        ; Store the sprite's new Y position
+  JMP Continue
+
+InstrDown: ; RIGHT
+  ; Instructions for when Down-Button is pressed (b0 == 1)
+  LDA pos_x        ; Load the sprite's Y position
+  CLC             ; Clear Carry Flag: Add
+  ADC #$01        ; Y = Y + 1
+  STA pos_x      ; Store the sprite's new Y position
+  JMP Continue
+
+InstrLeft: ; UP
+  ; Instructions for when L-Button is pressed (b0 == 1)
+  LDA pos_y      ; Load the sprite's X position
+  SEC             ; Set Carry Flag: Subtract
+  SBC #$01        ; X = X - 1
+  STA pos_y      ; Store the sprite's new X position
+  JMP Continue
+
+InstrRight: ; DOWN
+  ; Instructions for when R-Button is pressed (b0 == 1)
+  LDA pos_y     ; Load the sprite's X position
+  CLC             ; Clear Carry Flag: Add
+  ADC #$01        ; X = X + 1
+  STA pos_y      ; Store the sprite's new X position
+rts
 .endproc
 
 dog:  

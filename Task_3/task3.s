@@ -43,13 +43,7 @@
   lda $02
   sta $4014
 
-
-  INC frame_tick        ; Increment low byte of testloop
-  LDA button_pressed_flag
-  CMP #$00
-  BNE @loop_static
-  LDA #$00
-  STA frame_tick
+  INC frame_tick
 
   @loop_static:
     LDA #$00
@@ -61,7 +55,6 @@
   jsr player_controller
   jsr update_player_frame
   jsr render_player_frame
-
   rti
 .endproc
 
@@ -101,7 +94,7 @@ forever: ;FOREVER LOOP WAITING FOR THEN NMI INTERRUPT, WHICH OCCURS WHENEVER THE
   next:
     LDA sprite_direction
     CLC
-    ADC #$01
+    ADC player_moving_flag
     STA sprite_direction
 
   then:
@@ -162,7 +155,7 @@ forever: ;FOREVER LOOP WAITING FOR THEN NMI INTERRUPT, WHICH OCCURS WHENEVER THE
     STA $4016       ; Store that value of 1 into RAM, making voltage high for controller ports. This will set the 8 bits that will have the output values of the procedure. This will contain a series of bits that will denoted if a button was pressed or not.
     LDA #$00        ; Load value of 0 in acummulator.
     STA $4016       ; Brings voltage to low on the latch pins. Tell the controllers to latch buttons
-    STA button_pressed_flag
+    STA player_moving_flag
   ; The concept above is called 'Strobing' which initializes the controllers in an NES. Summary: Give me the buttons that the player is pressing now. Buttons are shown one at a time in bit0. If bit0 = 0, then it is not pressed, if bit0 = 1, then it is pressed.
 
   ; Button Instructions ------------------------------------------------------------
@@ -179,8 +172,6 @@ forever: ;FOREVER LOOP WAITING FOR THEN NMI INTERRUPT, WHICH OCCURS WHENEVER THE
     AND #%00000001  ; Only analyze bit0. AND instruction is used to clear the other bits, since only bit0 reads the button. (Isolate LSB)
     CMP #$00 ; Check if button is pressed or not (b0 == 0), then branches to Continue if not pressed.
     BEQ InstrSelect
-    LDA #$01
-    STA button_pressed_flag
 
   InstrSelect:
     ; Instructions for when Select-Button is pressed (b0 == 1)
@@ -188,8 +179,6 @@ forever: ;FOREVER LOOP WAITING FOR THEN NMI INTERRUPT, WHICH OCCURS WHENEVER THE
     AND #%00000001  ; Only analyze bit0. AND instruction is used to clear the other bits, since only bit0 reads the button. (Isolate LSB)
     CMP #$00 ; Check if button is pressed or not (b0 == 0), then branches to Continue if not pressed.
     BEQ InstrStart
-    LDA #$01
-    STA button_pressed_flag
 
   InstrStart:
     ; Instructions for when Start-Button is pressed (b0 == 1)
@@ -197,8 +186,6 @@ forever: ;FOREVER LOOP WAITING FOR THEN NMI INTERRUPT, WHICH OCCURS WHENEVER THE
     AND #%00000001  ; Only analyze bit0. AND instruction is used to clear the other bits, since only bit0 reads the button. (Isolate LSB)
     CMP #$00 ; Check if button is pressed or not (b0 == 0), then branches to Continue if not pressed.
     BEQ InstrUp
-    LDA #$01
-    STA button_pressed_flag
 
   InstrUp: 
     ; Instructions for when Up-Button is pressed (b0 == 1)
@@ -213,7 +200,7 @@ forever: ;FOREVER LOOP WAITING FOR THEN NMI INTERRUPT, WHICH OCCURS WHENEVER THE
     SBC #$01        ; Y = Y - 1
     STA pos_x        ; Store the sprite's new Y position
     LDA #$01
-    STA button_pressed_flag
+    STA player_moving_flag
 
   InstrDown: 
     ; Instructions for when Down-Button is pressed (b0 == 1)
@@ -228,7 +215,7 @@ forever: ;FOREVER LOOP WAITING FOR THEN NMI INTERRUPT, WHICH OCCURS WHENEVER THE
     ADC #$01        ; Y = Y + 1
     STA pos_x      ; Store the sprite's new Y position
     LDA #$01
-    STA button_pressed_flag
+    STA player_moving_flag
 
   InstrLeft:
     ; Instructions for when L-Button is pressed (b0 == 1)
@@ -243,7 +230,7 @@ forever: ;FOREVER LOOP WAITING FOR THEN NMI INTERRUPT, WHICH OCCURS WHENEVER THE
     SBC #$01        ; X = X - 1
     STA pos_y      ; Store the sprite's new X position
     LDA #$01
-    STA button_pressed_flag
+    STA player_moving_flag
 
   InstrRight:
     ; Instructions for when R-Button is pressed (b0 == 1)
@@ -258,7 +245,8 @@ forever: ;FOREVER LOOP WAITING FOR THEN NMI INTERRUPT, WHICH OCCURS WHENEVER THE
     ADC #$01        ; X = X + 1
     STA pos_y      ; Store the sprite's new X position
     LDA #$01
-    STA button_pressed_flag
+    STA player_moving_flag
+
   InstrEnd:
   rts
 .endproc
@@ -334,7 +322,7 @@ palettes: ;The first color should always be the same accross all the palettes. M
 .addr nmi_handler, reset_handler,irq_handler
 
 .segment "ZEROPAGE"
-button_pressed_flag: .res 1
+player_moving_flag: .res 1
 sprite_direction: .res 1
 sprite_end: .res 1
 frame_tick:  .res 1

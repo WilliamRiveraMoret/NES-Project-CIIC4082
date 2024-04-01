@@ -73,19 +73,19 @@ load_palettes:
   CPX #$20
   BNE @loop
 
-LDX #$00
+LDX #$00 ; Background Tiles Loop
 @tile_loop:
-  LDA $2002 
-  LDA tiles, x
-  STA $2006
+  LDA $2002 ; PPU STATUS
+  LDA tiles, x ; x = offset
+  STA $2006 ; Store in PPU ADDRESS in X
   INX
 
   LDA tiles, x
-  STA $2006
+  STA $2006 ; Store in PPU ADDRESS in Y
   INX
 
   LDA tiles, x
-  STA $2007
+  STA $2007 ; Store in PPU DATA
   INX
 
   CPX #$78
@@ -105,12 +105,12 @@ nmi:  ;WHENEVER AN NMI INTERRUPT OCCURS, THE PROGRAM JUMPS HERE (60fps)
   STX $2003
   STX $2005
 @loop:
-  LDA dog_sprites, x
-  STA $2004
+  LDA dog_sprites, x ; Loading the dog sprites that were drawn in NEXXT
+  STA $2004 ; Attributes
   INX
   CPX #$88
   BNE @loop
-  RTI
+  RTI ; end of nmi
 
 dog_sprites:
   .byte $00, $00, $00, $00  ; Do Not Modify
@@ -166,8 +166,8 @@ dog_sprites:
 
 tiles: 
   ; Stone Brick Wall
-  .byte $22, $48, $13
-  .byte $22, $49, $13
+  .byte $22, $48, $13 ; Format: .byte X pos, Y pos, Sprite Address (Tile)
+  .byte $22, $49, $13 
   .byte $22, $68, $13
   .byte $22, $69, $13
 
@@ -232,9 +232,9 @@ tiles:
   .byte $22, $AF, $1F
 
   ; Attribute
-  .byte $23, $EB, %00000010
+  .byte $23, $EB, %00000010 ; #$78 end of tile data
 
-palettes: ;The first color should always be the same accross all the palettes. MOdify this section to determine which colors you'd like to use
+palettes: ;The first color should always be the same accross all the palettes. Modify this section to determine which colors you'd like to use
   ; Background Palette % all black and gray
   .byte $0f, $27, $17, $07  ; Palette 00
   .byte $0f, $3D, $2D, $30  ; Palette 01

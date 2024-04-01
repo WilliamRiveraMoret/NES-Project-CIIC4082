@@ -11,11 +11,11 @@
 
 ; Main code segment for the program
 .segment "CODE"
-.proc irq_handler
+.proc irq_handler 
    RTI
 .endproc
 
-.proc reset_handler
+.proc reset_handler ; Left the same but made as a procedure
     SEI                 ; Set Interrupt ignore bit, thus anything that would trigger an IRQ event does nothing instead
     CLD                 ; Clear Decimal mode bit
     LDX #$40    
@@ -41,10 +41,9 @@
   STY $2003          ; Reset OAM address
   STY $2005          ; Reset scroll registers
   LDA $02
-  STA $4014
-
-; Increment and compare the 16-bit counter
-  INC frame_tick        ; Increment low byte of testloop
+  STA $4014  
+  ; Increment and compare the 16-bit counter
+  INC frame_tick     
 
   @loop_static:
     LDA #$00
@@ -53,14 +52,15 @@
     CPY #$08
     BNE @loop_static
 
-  LDA #$40
+  ; Movement Logic --------------------------------------
+  LDA #$40 
   STA pos_y
   LDA #$60
   STA pos_x
-  LDA #$00
+  LDA #$00 ; Sprite Index
   STA sprite_direction      ; Front
-  JSR update_player_frame
-  JSR render_player_frame
+  JSR update_player_frame   ; For every 15 ticks, sprite changes from stationary to motion versions
+  JSR render_player_frame   ; Display the sprite 
 
   LDA #$40
   STA pos_y
@@ -85,7 +85,7 @@
   LDA #$70
   STA pos_x
   LDA #$06
-  STA sprite_direction
+  STA sprite_direction      ; Left 
   JSR update_player_frame
   JSR render_player_frame
 
@@ -120,7 +120,7 @@ forever: ;FOREVER LOOP WAITING FOR THEN NMI INTERRUPT, WHICH OCCURS WHENEVER THE
   JMP forever
 
 .proc update_player_frame
-  LDA frame_tick         ; Load the low byte
+  LDA frame_tick 
   CMP #$0F               ; Compare low byte with $0F
   BCS next               ; Branch if greater than
   JMP then
@@ -132,7 +132,7 @@ forever: ;FOREVER LOOP WAITING FOR THEN NMI INTERRUPT, WHICH OCCURS WHENEVER THE
     STA sprite_direction
 
   then:
-    LDA frame_tick        ; Load the low byte
+    LDA frame_tick    
     CMP #$1F              ; Compare it with $1F
     BNE continue          ; Branch if not equal to $1F
     LDA #$00              ; Load 0 into A
@@ -144,32 +144,32 @@ forever: ;FOREVER LOOP WAITING FOR THEN NMI INTERRUPT, WHICH OCCURS WHENEVER THE
 
 .proc render_player_frame
   LDA sprite_direction ; Multiplying sprite start by 16
+  ASL A ; Shift Left: Multiply by 2 to move to another sprite index
   ASL A
   ASL A
   ASL A
-  ASL A
-  TAY
+  TAY ; Transfer A value to Y value
 
   CLC 
-  ADC #$10
+  ADC #$10 ; Add 16 to know when a sprite index starts and ends
   STA sprite_end
 
   @loop_sprites:
-    LDA pos_x
+    LDA pos_x ; Position in X of sprite
     CLC
-    ADC dog, y
+    ADC dog, y ; Add offset (y) to adjust position of neighboring sprites
+    STA $2004 
+    INY
+
+    LDA dog, y ; Load sprite table index 
     STA $2004
     INY
 
-    LDA dog, y
+    LDA dog, y ; Load attributes 
     STA $2004
     INY
 
-    LDA dog, y
-    STA $2004
-    INY
-
-    LDA pos_y
+    LDA pos_y ; Position in Y of sprite
     CLC
     ADC dog, y
     STA $2004
@@ -180,9 +180,9 @@ forever: ;FOREVER LOOP WAITING FOR THEN NMI INTERRUPT, WHICH OCCURS WHENEVER THE
     RTS
 .endproc
 
-dog:  
+dog:  ; each sprite has 16-bits
   ; Dog Front - SPRITE 0
-  .byte $00, $07, $00, $00 
+  .byte $00, $07, $00, $00 ; offset x, sprite address, palette, offset y
   .byte $00, $08, $00, $08
   .byte $08, $09, $00, $00
   .byte $08, $09, %01000000, $08
@@ -247,7 +247,7 @@ palettes: ;The first color should always be the same accross all the palettes. M
 .segment "CHARS"
 .incbin "sprites.chr"
  
-.segment "VECTORS"
+.segment "VECTORS" 
 .addr nmi_handler, reset_handler,irq_handler
 
 .segment "ZEROPAGE"

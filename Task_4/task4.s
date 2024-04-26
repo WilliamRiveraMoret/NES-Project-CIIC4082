@@ -35,6 +35,7 @@
     LDX #$04
     STX map_index
     JSR draw_background_subroutine
+    JSR background_attributes
 
     LDX #$10
     STX pos_x
@@ -188,6 +189,10 @@ forever: ;FOREVER LOOP WAITING FOR THEN NMI INTERRUPT, WHICH OCCURS WHENEVER THE
     AND #%00000001  ; Only analyze bit0. AND instruction is used to clear the other bits, since only bit0 reads the button. (Isolate LSB)
     CMP #$00 ; Check if button is pressed or not (b0 == 0), then branches to Continue if not pressed.
     BEQ InstrB
+    LDA reset_background_flag ; Set flag to indicate background should reset
+    EOR #%00000001
+    STA reset_background_flag
+    JSR reset_handler
 
   InstrB:
     ; Instructions for when B-Button is pressed (b0 == 1)
@@ -262,9 +267,6 @@ forever: ;FOREVER LOOP WAITING FOR THEN NMI INTERRUPT, WHICH OCCURS WHENEVER THE
     AND #%00000001  ; Only analyze bit0. AND instruction is used to clear the other bits, since only bit0 reads the button. (Isolate LSB)
     CMP #$00 ; Check if button is pressed or not (b0 == 0), then branches to Continue if not pressed.
     BEQ InstrEnd
-    ; LDA pos_y
-    ; CMP #255
-    ; BEQ InstrEnd
     LDA #$02
     STA sprite_direction 
     LDA pos_y     ; Load the sprite's X position
@@ -334,18 +336,57 @@ forever: ;FOREVER LOOP WAITING FOR THEN NMI INTERRUPT, WHICH OCCURS WHENEVER THE
 .endproc
 
 .proc draw_background_subroutine
-  LDY #$3C
-  STY background_end
-  LDY #$00
-  STY counter
+  LDA map_index
+  CLC
+  ADC reset_background_flag
+  CMP #$00
+  BEQ Level_1_1
 
   LDA map_index
+  CLC
+  ADC reset_background_flag
   CMP #$04
-  BNE draw_loop
-  LDY #$3B
-  STY counter
-  LDA #$78
-  STA background_end
+  BEQ Level_1_2
+
+  LDA map_index
+  CLC
+  ADC reset_background_flag
+  CMP #$01
+  BEQ Level_2_1
+
+  LDA map_index
+  CLC
+  ADC reset_background_flag
+  CMP #$05
+  BEQ Level_2_2
+
+  Level_1_1:
+    LDY #$00
+    STY counter
+    LDA #$3C
+    STA background_end
+    JMP draw_loop
+
+  Level_1_2:
+    LDY #$3B
+    STY counter
+    LDA #$78
+    STA background_end
+    JMP draw_loop
+
+  Level_2_1:
+    LDY #$3C
+    STY counter
+    LDA #$B4
+    STA background_end
+    JMP draw_loop
+
+  Level_2_2:
+    LDY #$B3
+    STY counter
+    LDA #$F0
+    STA background_end
+    JMP draw_loop
 
   draw_loop:
     JSR getIndex
@@ -416,26 +457,91 @@ forever: ;FOREVER LOOP WAITING FOR THEN NMI INTERRUPT, WHICH OCCURS WHENEVER THE
   RTS
 .endproc
 
+.proc background_attributes
+  LDX #$00
+  LDA #$C0
+  STA temp
+  @loop:
+
+    LDA #$23
+    STA $2006
+
+    LDA temp
+    STA $2006
+    
+    LDA attributes, X
+    STA $2007
+
+    INC temp
+    INX
+    LDY temp
+    CPY #$00
+    BNE @loop
+
+  LDA #$C0
+  STA temp
+
+  @loop2:
+    LDA #$27
+    STA $2006
+
+    LDA temp
+    STA $2006
+    
+    LDA attributes, X
+    STA $2007
+
+    INC temp
+    INX
+    LDY temp
+    CPY #$00
+    BNE @loop2
+  RTS
+.endproc
+
 .proc draw_background
-  LDA tiles_info, Y ; Load a byte from the address (tiles_info + X)
+  LDA reset_background_flag
+  CMP #$01
+  BNE next
+  LDA tiles_info2, Y
+  JMP end 
+  next:
+  LDA tiles_info, Y ; Load a byte from the address (tiles_info + Y)
+  end:
   STA $2007         ; Store the accumulator into PPU Data register
   INY
   RTS               ; Return from subroutine
 .endproc
 
 .proc getIndex
-  LDA map_index
-  CMP #$04
-  BNE mid
-  TYA
-  CLC
-  SBC #$3B
-  TAY
-  JMP next_thing
+  check_reset:
+    LDA reset_background_flag
+    CMP #$01
+    BNE check_offset
+    TYA
+    SEC
+    SBC #$78
+    TAY
+    LDA map_index
+    CMP #$04
+    BNE next_thing
+    TYA
+    SEC
+    SBC #$3C
+    TAY
+    JMP next_thing
 
-  mid:
-   TYA
+  check_offset:
+    LDA map_index
+    CMP #$04
+    BNE next_thing
+    TYA
+    SEC
+    SBC #$3C
+    TAY
+
   next_thing:
+  TYA
   LSR A                ; Shift right by 2 (x >> 2)
   LSR A
 
@@ -471,7 +577,6 @@ forever: ;FOREVER LOOP WAITING FOR THEN NMI INTERRUPT, WHICH OCCURS WHENEVER THE
     CPX #$06                    ; Compare with loop limit (6 times)
     BNE mult                    ; If not at limit, loop again
 
-
  ; Now isolate the lower 2 bits
   TYA                    ; Reload the original value
   AND #$03               ; Isolate last 2 bits
@@ -498,52 +603,52 @@ forever: ;FOREVER LOOP WAITING FOR THEN NMI INTERRUPT, WHICH OCCURS WHENEVER THE
 
 dog:
   ; Dog Front - SPRITE 0
-  .byte $00, $07, $00, $00 
-  .byte $00, $08, $00, $08
-  .byte $08, $09, $00, $00
-  .byte $08, $09, %01000000, $08
+  .byte $00, $07, %00100000, $00 
+  .byte $00, $08, %00100000, $08
+  .byte $08, $09, %00100000, $00
+  .byte $08, $09, %01100000, $08
 
   ; Dog Front Running - SPRITE 1
-  .byte $00, $0A, $00, $00  
-  .byte $00, $0B, $00, $08
-  .byte $08, $0C, $00, $00
-  .byte $08, $0C, %01000000, $08
+  .byte $00, $0A, %00100000, $00  
+  .byte $00, $0B, %00100000, $08
+  .byte $08, $0C, %00100000, $00
+  .byte $08, $0C, %01100000, $08
 
   ; Dog Right - SPRITE 2
-  .byte $00, $01, $00, $00
-  .byte $00, $02, $00, $08
-  .byte $08, $03, $00, $00
-  .byte $08, $04, $00, $08
+  .byte $00, $01, %00100000, $00
+  .byte $00, $02, %00100000, $08
+  .byte $08, $03, %00100000, $00
+  .byte $08, $04, %00100000, $08
 
   ; Dog Right Running - SPRITE 3
-  .byte $00, $01, $00, $00
-  .byte $00, $02, $00, $08
-  .byte $08, $05, $00, $00
-  .byte $08, $06, $00, $08
+  .byte $00, $01, %00100000, $00
+  .byte $00, $02, %00100000, $08
+  .byte $08, $05, %00100000, $00
+  .byte $08, $06, %00100000, $08
 
   ; Dog Back - SPRITE 4
-  .byte $00, $0D, $00, $00      
-  .byte $00, $0D, %01000000, $08
-  .byte $08, $0E, $00, $00
-  .byte $08, $0F, $00, $08
+  .byte $00, $0D, %00100000, $00      
+  .byte $00, $0D, %01100000, $08
+  .byte $08, $0E, %00100000, $00
+  .byte $08, $0F, %00100000, $08
 
   ; Dog Back Running - SPRITE 5
-  .byte $00, $10, $00, $00
-  .byte $00, $10, %01000000, $08
-  .byte $08, $11, $00, $00
-  .byte $08, $12, $00, $08
+  .byte $00, $10, %00100000, $00
+  .byte $00, $10, %01100000, $08
+  .byte $08, $11, %00100000, $00
+  .byte $08, $12, %00100000, $08
 
   ; Dog Left - SPRITE 6
-  .byte $00, $02, %01000000, $00
-  .byte $00, $01, %01000000, $08
-  .byte $08, $04, %01000000, $00
-  .byte $08, $03, %01000000, $08
+  .byte $00, $02, %01100000, $00
+  .byte $00, $01, %01100000, $08
+  .byte $08, $04, %01100000, $00
+  .byte $08, $03, %01100000, $08
 
   ; Dog Left Running - SPRITE 7
-  .byte $00, $02, %01000000, $00
-  .byte $00, $01, %01000000, $08
-  .byte $08, $06, %01000000, $00
-  .byte $08, $05, %01000000, $08
+  .byte $00, $02, %01100000, $00
+  .byte $00, $01, %01100000, $08
+  .byte $08, $06, %01100000, $00
+  .byte $08, $05, %01100000, $08
 
 tiles_info: 
   ; Nothing:
@@ -570,6 +675,30 @@ tiles_info:
   .byte $2F
   .byte $30
 
+tiles_info2:
+   ; Nothing:
+  .byte $00
+  .byte $00
+  .byte $00
+  .byte $00
+
+  .byte $17
+  .byte $17
+  .byte $17
+  .byte $17
+
+  ; Wood:
+  .byte $18
+  .byte $18
+  .byte $18
+  .byte $18
+
+  ; Fence:
+  .byte $1B
+  .byte $1B
+  .byte $24
+  .byte $24
+
 palettes: ;The first color should always be the same accross all the palettes. MOdify this section to determine which colors you'd like to use
   ; Background Palette % all black and gray
   .byte $0f, $27, $17, $07  ; Palette 00
@@ -583,6 +712,25 @@ palettes: ;The first color should always be the same accross all the palettes. M
   .byte $0f, $06, $0B, $00  ; Palette 02
   .byte $0f, $27, $16, $07  ; Palette 03
 
+attributes:
+  .byte %10010101, %10100101, %10100101, %10100101, %10100101, %10100101, %10100101, %10100101 ; 1 
+  .byte %10011001, %10101010, %10101010, %10101010, %10101010, %10101010, %10101010, %10101010 ; 2
+  .byte %10011001, %10101010, %10101010, %10101010, %10101010, %10101010, %10101010, %10101010 ; 3
+  .byte %10011001, %10101010, %10101010, %10101010, %10101010, %10101010, %10101010, %10101010 ; 4
+  .byte %10011001, %10101010, %10101010, %10101010, %10101010, %10101010, %10101010, %10101010 ; 5
+  .byte %10011001, %10101010, %10101010, %10101010, %10101010, %10101010, %10101010, %10101010 ; 6
+  .byte %10011001, %10101010, %10101010, %10101010, %10101010, %10101010, %10101010, %10101010 ; 7 
+  .byte %00000101, %00000101, %00000101, %00000101, %00000101, %00000101, %00000101, %00000101 ; 8
+
+  .byte %10100101, %10100101, %10100101, %10100101, %10100101, %10100101, %10100101, %01100101 ; 1 
+  .byte %10101010, %10101010, %10101010, %10101010, %10101010, %10101010, %10101010, %01100110 ; 2
+  .byte %10101010, %10101010, %10101010, %10101010, %10101010, %10101010, %10101010, %01100110 ; 3
+  .byte %10101010, %10101010, %10101010, %10101010, %10101010, %10101010, %10101010, %01100110 ; 4
+  .byte %10101010, %10101010, %10101010, %10101010, %10101010, %10101010, %10101010, %01100110 ; 5
+  .byte %10101010, %10101010, %10101010, %10101010, %10101010, %10101010, %10101010, %01100110 ; 6
+  .byte %10101010, %10101010, %10101010, %10101010, %10101010, %10101010, %10101010, %01100110 ; 7 
+  .byte %00000101, %00000101, %00000101, %00000101, %00000101, %00000101, %00000101, %00000101 ; 8
+
 map:
   ;Level 1.1
   .byte %10101010, %10101010, %10101010, %10101010 ; 0
@@ -591,7 +739,7 @@ map:
   .byte %10000000, %00000000, %01000101, %01110100 ; 3
   .byte %10110100, %01000100, %00000100, %01000100 ; 4
   .byte %10000100, %01110101, %01000100, %01000100 ; 5
-  .byte %10000100, %00111111, %01001100, %00011000 ; 6
+  .byte %10000100, %00111111, %01001100, %00010100 ; 6
   .byte %10000100, %01110101, %01110100, %01011100 ; 7
   .byte %10000100, %00000001, %01110100, %00000001 ; 8
   .byte %10001100, %00010001, %00000100, %01010101 ; 9
@@ -618,6 +766,39 @@ map:
   .byte %01111100, %01000000, %00111111, %00110010 ; 13
   .byte %10101010, %10101010, %10101010, %10101010 ; 14
 
+  ;Level 2.1
+  .byte %10101010, %10101010, %10101010, %10101010 ; 0
+  .byte %10000000, %00000101, %01010000, %01000000 ; 1
+  .byte %10010101, %11010100, %00010001, %01110100 ; 2
+  .byte %10000000, %00000101, %00010001, %01000100 ; 3
+  .byte %10000100, %01000100, %11010001, %01111100 ; 4
+  .byte %10000100, %00001100, %01110001, %01000100 ; 5
+  .byte %10000100, %01010100, %01000011, %01000100 ; 6
+  .byte %10010100, %00000100, %01000100, %00000100 ; 7
+  .byte %10010000, %01001100, %00000100, %00010100 ; 8
+  .byte %10011111, %01010101, %01010100, %01010000 ; 9
+  .byte %10000000, %01000000, %00010000, %00111101 ; 10
+  .byte %10000101, %00000100, %01001101, %00010001 ; 11
+  .byte %10000111, %11010100, %01000001, %00010001 ; 12
+  .byte %10001100, %01010000, %01011111, %00010000 ; 13
+  .byte %10101010, %10101010, %10101010, %10101010 ; 14
+
+  ;Level 2.2
+  .byte %10101010, %10101010, %10101010, %10101010 ; 0
+  .byte %01000000, %00000101, %01000000, %00011110 ; 1
+  .byte %01011101, %01000001, %01011101, %01010010 ; 2
+  .byte %01010001, %01010001, %00010000, %00110010 ; 3
+  .byte %00001101, %01000001, %01010101, %00010110 ; 4
+  .byte %01000101, %01001100, %01000000, %00010010 ; 5
+  .byte %01000000, %01000100, %01000101, %01011110 ; 6
+  .byte %01010100, %11111100, %00010011, %01000010 ; 7
+  .byte %01000100, %01010100, %00010001, %01010010 ; 8
+  .byte %01001100, %01000001, %01010001, %00000110 ; 9
+  .byte %01000100, %00000101, %01000001, %00010010 ; 10
+  .byte %01000101, %01000001, %01010001, %00011110 ; 11
+  .byte %01010100, %00000101, %00010000, %00110010 ; 12
+  .byte %00000000, %01001100, %00111100, %01010010 ; 13
+  .byte %10101010, %10101010, %10101010, %10101010 ; 14
 
 ; Character memory
 .segment "CHARS"
@@ -639,6 +820,8 @@ background_index_low: .res 1
 counter: .res 1
 counter2: .res 1
 temp: .res 1
+temp2: .res 1
 map_index: .res 1
 background_end: .res 1
 scroll: .res 1
+reset_background_flag: .res 1
